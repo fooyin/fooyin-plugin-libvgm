@@ -258,11 +258,11 @@ AudioBuffer VgmDecoder::readBuffer(size_t bytes)
     AudioBuffer buffer{m_format, startTime};
     buffer.resize(bytes);
 
-    const int frames = m_format.framesForBytes(static_cast<int>(bytes));
+    const int frames = m_format.framesForBytes(static_cast<uint64_t>(bytes));
     int framesWritten{0};
     while(framesWritten < frames) {
-        const int framesToWrite = std::min(frames - framesWritten, BufferLen);
-        const int bufferPos     = m_format.bytesForFrames(framesWritten);
+        const int framesToWrite  = std::min(frames - framesWritten, BufferLen);
+        const uint64_t bufferPos = m_format.bytesForFrames(framesWritten);
         m_mainPlayer->Render(m_format.bytesForFrames(framesToWrite), buffer.data() + bufferPos);
         framesWritten += framesToWrite;
     }
@@ -314,12 +314,7 @@ bool VgmReader::readTrack(const AudioSource& source, Track& track)
     }
 
     const FySettings settings;
-
-    int loopCount = settings.value(LoopCountSetting).toInt();
-    if(isRepeatingTrack()) {
-        loopCount = DefaultLoopCount;
-    }
-
+    const int loopCount = settings.value(LoopCountSetting).toInt();
     setLoopCount(&mainPlayer, loopCount);
 
     PlayerBase* player = mainPlayer.GetPlayer();
