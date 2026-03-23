@@ -25,6 +25,19 @@
 using namespace Qt::StringLiterals;
 
 namespace Fooyin::VgmInput {
+namespace {
+class VgmInputPluginSettingsProvider : public PluginSettingsProvider
+{
+public:
+    void showSettings(QWidget* parent) override
+    {
+        auto* dialog = new VgmInputSettings(parent);
+        dialog->setAttribute(Qt::WA_DeleteOnClose);
+        dialog->show();
+    }
+};
+} // namespace
+
 QString VgmInputPlugin::inputName() const
 {
     return u"VGM Input"_s;
@@ -42,16 +55,9 @@ InputCreator VgmInputPlugin::inputCreator() const
     return creator;
 }
 
-bool VgmInputPlugin::hasSettings() const
+std::unique_ptr<PluginSettingsProvider> VgmInputPlugin::settingsProvider() const
 {
-    return true;
-}
-
-void VgmInputPlugin::showSettings(QWidget* parent)
-{
-    auto* dialog = new VgmInputSettings(parent);
-    dialog->setAttribute(Qt::WA_DeleteOnClose);
-    dialog->show();
+    return std::make_unique<VgmInputPluginSettingsProvider>();
 }
 } // namespace Fooyin::VgmInput
 
