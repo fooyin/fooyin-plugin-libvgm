@@ -1,0 +1,41 @@
+name: Build
+
+on:
+  push:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  release:
+    types: [published]
+
+jobs:
+  build:
+    name: Build against fooyin
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Dependencies
+        run: |
+          pacman -Syu --noconfirm --needed \
+            base-devel \
+            cmake \
+            git \
+            ninja \
+            fooyin
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --verbose
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: fooyin-plugin-libvgm
+          path: build/fyplugin_vgminput.so
