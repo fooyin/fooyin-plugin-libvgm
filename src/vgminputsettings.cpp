@@ -44,7 +44,6 @@ VgmInputSettings::VgmInputSettings(QWidget* parent)
     , m_romLocation{new QLineEdit(this)}
 {
     setWindowTitle(tr("%1 Settings").arg(u"VGM Input"_s));
-    setModal(true);
 
     auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     QObject::connect(buttons, &QDialogButtonBox::accepted, this, &VgmInputSettings::accept);
