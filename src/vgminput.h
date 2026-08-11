@@ -45,6 +45,7 @@ public:
 
     [[nodiscard]] QStringList extensions() const override;
     [[nodiscard]] bool isSeekable() const override;
+    [[nodiscard]] RepeatHandling repeatHandling() const override;
     [[nodiscard]] bool trackHasChanged() const override;
     [[nodiscard]] Track changedTrack() const override;
 
@@ -56,12 +57,21 @@ public:
 
     AudioBuffer readBuffer(size_t bytes) override;
 
+protected:
+    void playbackHintsChanged(PlaybackHints hints) override;
+
 private:
+    void applyRepeatPolicy();
+    [[nodiscard]] int effectiveLoopCount() const;
+
     FySettings m_settings;
     AudioFormat m_format;
     DataLoaderPtr m_loader;
     std::unique_ptr<PlayerA> m_mainPlayer;
     Track m_changedTrack;
+    int m_configuredLoopCount;
+    bool m_loopingDisabled;
+    bool m_infiniteLoopingDisabled;
 };
 
 class VgmReader : public AudioReader

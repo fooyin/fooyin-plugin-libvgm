@@ -138,6 +138,9 @@ DATA_LOADER* requestFileCallback(void* /*userParam*/, PlayerBase* /*player*/, co
 
 namespace Fooyin::VgmInput {
 VgmDecoder::VgmDecoder()
+    : m_configuredLoopCount{DefaultLoopCount}
+    , m_loopingDisabled{false}
+    , m_infiniteLoopingDisabled{false}
 {
     m_format.setSampleFormat(SampleFormat::S16);
     m_format.setSampleRate(SampleRate);
@@ -152,6 +155,11 @@ QStringList VgmDecoder::extensions() const
 bool VgmDecoder::isSeekable() const
 {
     return true;
+}
+
+AudioDecoder::RepeatHandling VgmDecoder::repeatHandling() const
+{
+    return RepeatHandling::DecoderLoop;
 }
 
 bool VgmDecoder::trackHasChanged() const
@@ -174,16 +182,9 @@ std::optional<AudioFormat> VgmDecoder::init(const AudioSource& source, const Tra
     m_mainPlayer->SetFileReqCallback(requestFileCallback, nullptr);
     configurePlayer(m_mainPlayer.get());
 
-    int loopCount = m_settings.value(LoopCountSetting, DefaultLoopCount).toInt();
-    if(options & NoLooping) {
-        loopCount = 1;
-    }
-    else if(options & NoInfiniteLooping && isRepeatingTrack()) {
-        loopCount = DefaultLoopCount;
-    }
-    else if(!(options & NoInfiniteLooping) && isRepeatingTrack()) {
-        loopCount = 0;
-    }
+    m_configuredLoopCount     = m_settings.value(LoopCountSetting, DefaultLoopCount).toInt();
+    m_loopingDisabled         = options & NoLooping;
+    m_infiniteLoopingDisabled = options & NoInfiniteLooping;
 
     const QByteArray data = source.device->readAll();
     if(data.isEmpty()) {
@@ -205,10 +206,10 @@ std::optional<AudioFormat> VgmDecoder::init(const AudioSource& source, const Tra
         return {};
     }
 
-    const int currLoopCount{loopCount};
+    const int loopCount = effectiveLoopCount();
 
     if(options & UpdateTracks) {
-        setLoopCount(m_mainPlayer.get(), currLoopCount == 0 ? DefaultLoopCount : currLoopCount);
+        setLoopCount(m_mainPlayer.get(), loopCount == 0 ? DefaultLoopCount : loopCount);
 
         const auto duration = static_cast<uint64_t>(m_mainPlayer->GetTotalTime(DurationFlags) * 1000);
         if(track.duration() != duration) {
@@ -217,9 +218,32 @@ std::optional<AudioFormat> VgmDecoder::init(const AudioSource& source, const Tra
         }
     }
 
-    setLoopCount(m_mainPlayer.get(), currLoopCount);
+    applyRepeatPolicy();
 
     return m_format;
+}
+
+void VgmDecoder::playbackHintsChanged(PlaybackHints /*hints*/)
+{
+    applyRepeatPolicy();
+}
+
+int VgmDecoder::effectiveLoopCount() const
+{
+    if(m_loopingDisabled) {
+        return 1;
+    }
+    if(!isRepeatingTrack()) {
+        return m_configuredLoopCount;
+    }
+    return m_infiniteLoopingDisabled ? DefaultLoopCount : 0;
+}
+
+void VgmDecoder::applyRepeatPolicy()
+{
+    if(m_mainPlayer) {
+        setLoopCount(m_mainPlayer.get(), effectiveLoopCount());
+    }
 }
 
 void VgmDecoder::start()
@@ -314,7 +338,7 @@ bool VgmReader::readTrack(const AudioSource& source, Track& track)
     }
 
     const FySettings settings;
-    const int loopCount = settings.value(LoopCountSetting).toInt();
+    const int loopCount = settings.value(LoopCountSetting, DefaultLoopCount).toInt();
     setLoopCount(&mainPlayer, loopCount);
 
     PlayerBase* player = mainPlayer.GetPlayer();
