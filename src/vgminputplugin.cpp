@@ -28,12 +28,10 @@ namespace Fooyin::VgmInput {
 namespace {
 class VgmInputPluginSettingsProvider : public PluginSettingsProvider
 {
-public:
-    void showSettings(QWidget* parent) override
+protected:
+    QDialog* createSettings(QWidget* parent) override
     {
-        auto* dialog = new VgmInputSettings(parent);
-        dialog->setAttribute(Qt::WA_DeleteOnClose);
-        dialog->show();
+        return new VgmInputSettings(parent);
     }
 };
 } // namespace
