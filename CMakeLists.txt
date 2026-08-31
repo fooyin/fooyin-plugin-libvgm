@@ -20,6 +20,13 @@ if(LIBVGM_FOUND)
     message(STATUS "Using system libvgm")
 elseif(EXISTS "${CMAKE_SOURCE_DIR}/3rdparty/libvgm/CMakeLists.txt")
     message(STATUS "Using 3rd-party libvgm")
+
+    if(WIN32)
+        # Bundled libvgm ships a 32-bit iconv library; use native Windows conversion instead
+        set(UTIL_CHARCNV_ICONV OFF CACHE BOOL "Use iconv for libvgm charset conversion")
+        set(UTIL_CHARCNV_WINAPI ON CACHE BOOL "Use WinAPI for libvgm charset conversion")
+    endif()
+
     add_subdirectory(${CMAKE_SOURCE_DIR}/3rdparty/libvgm libvgm EXCLUDE_FROM_ALL)
     add_library(libvgm::vgm-player ALIAS vgm-player)
 else()
@@ -31,6 +38,7 @@ create_fooyin_plugin(
     vgminput
     JSON_IN src/vgminput.json.in
     DEPENDS Fooyin::Core
+            Fooyin::Gui
             libvgm::vgm-player
     SOURCES src/vgminput.h
             src/vgminput.cpp
