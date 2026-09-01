@@ -85,7 +85,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
-          name: fooyin-plugin-libvgm
+          name: fooyin-plugin-libvgm-linux
           path: build/fyplugin_vgminput.so
           if-no-files-found: error
 
