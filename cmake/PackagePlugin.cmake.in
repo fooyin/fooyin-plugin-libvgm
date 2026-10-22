@@ -1,0 +1,26 @@
+set(bundle_directory "@CMAKE_CURRENT_BINARY_DIR@/bundle")
+set(bundle_platform "@bundle_platform@")
+set(bundle_files "@bundle_files@")
+set(bundle_output "@CMAKE_CURRENT_BINARY_DIR@/fooyin-libvgm-@bundle_platform@.fyplugin")
+
+file(REMOVE_RECURSE "${bundle_directory}")
+file(MAKE_DIRECTORY "${bundle_directory}/${bundle_platform}")
+file(COPY ${bundle_files} DESTINATION "${bundle_directory}/${bundle_platform}")
+file(COPY "@CMAKE_CURRENT_SOURCE_DIR@/COPYING" "@CMAKE_CURRENT_SOURCE_DIR@/README.md" DESTINATION "${bundle_directory}")
+set(bundle_entries "${bundle_platform}" COPYING README.md)
+
+if("@WIN32@")
+    file(MAKE_DIRECTORY "${bundle_directory}/licenses")
+    configure_file("@PLUGIN_BUNDLE_ZLIB_LICENSE@" "${bundle_directory}/licenses/zlib.txt" COPYONLY)
+    list(APPEND bundle_entries licenses)
+endif()
+
+execute_process(
+    COMMAND "${CMAKE_COMMAND}" -E tar cf "${bundle_output}" --format=zip ${bundle_entries}
+    WORKING_DIRECTORY "${bundle_directory}"
+    RESULT_VARIABLE bundle_result
+)
+if(NOT bundle_result STREQUAL "0")
+    message(FATAL_ERROR "Could not create ${bundle_output}: ${bundle_result}")
+endif()
+message(STATUS "Created ${bundle_output}")

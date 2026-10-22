@@ -42,6 +42,7 @@ jobs:
             libswresample-dev \
             libicu-dev \
             libtag1-dev \
+            libarchive-dev \
             zlib1g-dev
 
       - name: Checkout plugin
@@ -77,16 +78,35 @@ jobs:
         run: |
           cmake -S . -B build -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_PREFIX_PATH="$FOOYIN_PREFIX"
+            -DCMAKE_PREFIX_PATH="$FOOYIN_PREFIX" \
+            -DBUILD_PLUGIN_BUNDLE=ON \
+            -DLIBRARY_TYPE=SHARED
 
       - name: Build plugin
         run: cmake --build build
+
+      - name: Package plugin bundle
+        run: cmake --build build --target package_plugin
+
+      - name: Check bundled runtime dependencies
+        run: |
+          ldd -r build/bundle/linux-x64/fyplugin_vgminput.so > build/ldd.txt
+          cat build/ldd.txt
+          if grep -Eq 'not found|undefined symbol:' build/ldd.txt; then
+            exit 1
+          fi
+          for library in player emu utils; do
+            if ! grep -Eq "libvgm-${library}\.so => .*/bundle/linux-x64/" build/ldd.txt; then
+              echo "libvgm-${library} is not loaded from the bundle"
+              exit 1
+            fi
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: fooyin-plugin-libvgm-linux
-          path: build/fyplugin_vgminput.so
+          path: build/fooyin-libvgm-linux-x64.fyplugin
           if-no-files-found: error
 
   build-windows:
@@ -96,7 +116,7 @@ jobs:
     env:
       FOOYIN_REF: master
       FOOYIN_PREFIX: ${{ github.workspace }}/fooyin-install
-      QT_VERSION: '6.8.3'
+      QT_VERSION: '6.12.0'
       VCPKG_DISABLE_METRICS: true
       VCPKG_ROOT_DIR: C:/vcpkg
       VCPKG_INSTALLED_DIR: C:/v
@@ -137,6 +157,8 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
+          # Support the Windows x64 repository layout used by Qt 6.11 and later.
+          aqtsource: git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b
           archives: qtbase qtsvg qttools
           cache: true
           arch: win64_msvc2022_64
@@ -185,21 +207,25 @@ jobs:
             -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_ROOT_DIR/scripts/buildsystems/vcpkg.cmake" `
             -DVCPKG_INSTALLED_DIR="$env:VCPKG_INSTALLED_DIR" `
             -DVCPKG_TARGET_TRIPLET=x64-windows `
-            -DQt6_DIR="$env:QT_ROOT_DIR/lib/cmake/Qt6"
+            -DQt6_DIR="$env:QT_ROOT_DIR/lib/cmake/Qt6" `
+            -DBUILD_PLUGIN_BUNDLE=ON `
+            -DLIBRARY_TYPE=SHARED
 
       - name: Build plugin
         run: cmake --build build
+
+      - name: Package plugin bundle
+        run: cmake --build build --target package_plugin
 
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
           name: fooyin-plugin-libvgm-windows
-          path: build/fyplugin_vgminput.dll
+          path: build/fooyin-libvgm-windows-x64.fyplugin
           if-no-files-found: error
 
-  attach:
-    name: Attach to release
-    if: github.event_name == 'release' && github.event.action == 'published'
+  bundle:
+    name: Package all platforms
     runs-on: ubuntu-latest
     needs: [build, build-windows]
     steps:
@@ -215,12 +241,51 @@ jobs:
           name: fooyin-plugin-libvgm-windows
           path: ./artifacts
 
+      - name: Package combined plugin bundle
+        run: |
+          cmake -E make_directory bundle
+          cd bundle
+          cmake -E tar xf ../artifacts/fooyin-libvgm-linux-x64.fyplugin
+          cmake -E tar xf ../artifacts/fooyin-libvgm-windows-x64.fyplugin
+          cmake -E tar cf ../fooyin-libvgm.fyplugin --format=zip linux-x64 windows-x64 licenses COPYING README.md
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: fooyin-plugin-libvgm-all
+          path: fooyin-libvgm.fyplugin
+          if-no-files-found: error
+
+  attach:
+    name: Attach to release
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    needs: [bundle]
+    steps:
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: fooyin-plugin-libvgm-linux
+          path: ./artifacts
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: fooyin-plugin-libvgm-windows
+          path: ./artifacts
+
+      - name: Download combined artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: fooyin-plugin-libvgm-all
+          path: ./artifacts
+
       - name: Upload Linux artifact to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.event.release.tag_name }}
-          file: ./artifacts/fyplugin_vgminput.so
+          file: ./artifacts/fooyin-libvgm-linux-x64.fyplugin
           overwrite: true
 
       - name: Upload Windows artifact to release
@@ -228,5 +293,13 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ github.event.release.tag_name }}
-          file: ./artifacts/fyplugin_vgminput.dll
+          file: ./artifacts/fooyin-libvgm-windows-x64.fyplugin
+          overwrite: true
+
+      - name: Upload combined artifact to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ github.event.release.tag_name }}
+          file: ./artifacts/fooyin-libvgm.fyplugin
           overwrite: true
