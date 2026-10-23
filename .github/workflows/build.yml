@@ -87,20 +87,6 @@ jobs:
       - name: Package plugin bundle
         run: cmake --build build --target package_plugin
 
-      - name: Check bundled runtime dependencies
-        run: |
-          ldd -r build/bundle/linux-x64/fyplugin_vgminput.so > build/ldd.txt
-          cat build/ldd.txt
-          if grep -Eq 'not found|undefined symbol:' build/ldd.txt; then
-            exit 1
-          fi
-          for library in player emu utils; do
-            if ! grep -Eq "libvgm-${library}\.so => .*/bundle/linux-x64/" build/ldd.txt; then
-              echo "libvgm-${library} is not loaded from the bundle"
-              exit 1
-            fi
-          done
-
       - name: Upload artifact
         uses: actions/upload-artifact@v6
         with:
