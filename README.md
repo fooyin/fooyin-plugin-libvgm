@@ -5,16 +5,17 @@ to play VGM (`.vgm` and `.vgz`), S98 (`.s98`), GYM (`.gym`), and DOSBox Raw OPL 
 
 ## Installation
 
-Pre-built Linux binaries are available from the project's [GitHub releases](https://github.com/fooyin/fooyin-plugin-libvgm/releases).
-Download `fyplugin_vgminput.so` and either install it from the `Plugins` settings page 
-or place it in fooyin's plugin directory (`~/.local/lib/fooyin/plugins`), then restart fooyin.
+Pre-built bundles for Linux x64 and Windows x64 are available from the project's
+[GitHub releases](https://github.com/fooyin/fooyin-plugin-libvgm/releases).
+Download `fooyin-libvgm.fyplugin` for both platforms or choose the smaller Linux or Windows bundle.
+Install it from fooyin's `Plugins` settings page, then restart fooyin.
 
 ## Building from source
 
 You will need:
 
 - A C++ compiler with C++23 support
-- CMake 3.14 or later
+- CMake 3.19 or later
 - fooyin, including its CMake development files
 - libvgm (`vgm-player`)
 
